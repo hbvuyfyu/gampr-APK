@@ -356,12 +356,13 @@ export const createOxaPayInvoice = async (req: AuthRequest, res: Response): Prom
 
 // ── OxaPay: Webhook (called automatically by OxaPay servers) ────────────────
 // NO authentication middleware — secured via HMAC-SHA512 signature verification
+// Security: constant-time HMAC comparison, atomic DB state transition
 
 export const oxapayWebhook = async (req: Request, res: Response): Promise<void> => {
   try {
     const body = req.body as Record<string, unknown>;
 
-    // ── 1. Verify HMAC-SHA512 signature ─────────────────────────────────────
+    // ── 1. Verify HMAC-SHA512 signature (constant-time) ──────────────────────
     const receivedHmac = body.hmac as string | undefined;
     if (!receivedHmac) {
       console.warn('[oxapayWebhook] Missing HMAC in request');
@@ -394,13 +395,20 @@ export const oxapayWebhook = async (req: Request, res: Response): Promise<void> 
       .update(dataString)
       .digest('hex');
 
-    if (expectedHmac !== receivedHmac) {
+    // Constant-time comparison to prevent timing attacks
+    const expectedBuf = Buffer.from(expectedHmac, 'utf8');
+    const receivedBuf = Buffer.from(receivedHmac,  'utf8');
+    const hmacValid =
+      expectedBuf.length === receivedBuf.length &&
+      crypto.timingSafeEqual(expectedBuf, receivedBuf);
+
+    if (!hmacValid) {
       console.warn('[oxapayWebhook] HMAC verification failed');
       res.status(401).json({ success: false, message: 'Invalid signature' });
       return;
     }
 
-    // ── 2. Parse webhook payload ─────────────────────────────────────────────
+    // ── 2. Parse and validate webhook payload ────────────────────────────────
     const status  = body.status  as string | undefined;
     const orderId = body.orderId as string | undefined;   // Our internal payment ID
     const trackId = body.trackId !== undefined ? String(body.trackId) : undefined;
@@ -411,44 +419,55 @@ export const oxapayWebhook = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    // Always respond 200 quickly to OxaPay — process async
-    res.json({ success: true });
-
-    // ── 3. Handle only successful payments ───────────────────────────────────
+    // Only process successful payments — acknowledge all others immediately
     if (status !== 'Paid') {
-      console.log(`[oxapayWebhook] Payment ${orderId} status: ${status} — no action needed`);
+      console.log(`[oxapayWebhook] Payment ${orderId} status: ${status} — acknowledged, no action`);
+      res.json({ success: true });
       return;
     }
 
-    // ── 4. Load and validate the payment ────────────────────────────────────
+    // ── 3. Atomic idempotent state transition ─────────────────────────────────
+    // Use updateMany with PENDING+OXAPAY_USDT guard to prevent race conditions:
+    // only one concurrent webhook call will succeed; duplicates get count=0 and skip.
+    const claimed = await withDb(() =>
+      prisma.payment.updateMany({
+        where: {
+          id:     orderId,
+          status: 'PENDING',
+          method: 'OXAPAY_USDT',
+        },
+        data: {
+          status:        'APPROVED',
+          oxapayTrackId: trackId,
+          reviewedAt:    new Date(),
+          notes:         'تمت الموافقة تلقائياً عبر OxaPay',
+        },
+      })
+    );
+
+    if (claimed.count === 0) {
+      // Either already processed (idempotent), doesn't exist, or wrong method
+      console.log(`[oxapayWebhook] Payment ${orderId} — no PENDING record to claim (already processed or invalid)`);
+      res.json({ success: true });
+      return;
+    }
+
+    // ── 4. Payment claimed — load it and create subscription ─────────────────
     const payment = await withDb(() =>
       prisma.payment.findUnique({
-        where: { id: orderId },
+        where:   { id: orderId },
         include: { plan: true },
       })
     );
 
     if (!payment) {
-      console.error(`[oxapayWebhook] Payment not found: ${orderId}`);
+      // Should not happen — we just updated it — but guard defensively
+      console.error(`[oxapayWebhook] Payment ${orderId} missing after claim — data inconsistency`);
+      res.status(500).json({ success: false, message: 'Internal error' });
       return;
     }
 
-    if (payment.method !== 'OXAPAY_USDT') {
-      console.error(`[oxapayWebhook] Payment ${orderId} method mismatch: ${payment.method}`);
-      return;
-    }
-
-    if (payment.status === 'APPROVED') {
-      console.log(`[oxapayWebhook] Payment ${orderId} already approved — skipping`);
-      return;
-    }
-
-    if (payment.status !== 'PENDING') {
-      console.warn(`[oxapayWebhook] Payment ${orderId} is ${payment.status} — cannot approve`);
-      return;
-    }
-
-    // ── 5. Auto-approve: cancel existing subscriptions, create new one ───────
+    // Cancel any existing active subscriptions for this user
     await withDb(() =>
       prisma.subscription.updateMany({
         where: { userId: payment.userId, status: 'ACTIVE' },
@@ -472,34 +491,35 @@ export const oxapayWebhook = async (req: Request, res: Response): Promise<void> 
       })
     );
 
+    // Link subscription to the payment record
     await withDb(() =>
       prisma.payment.update({
         where: { id: orderId },
-        data: {
-          status:         'APPROVED',
-          subscriptionId: subscription.id,
-          oxapayTrackId:  trackId ?? payment.oxapayTrackId,
-          reviewedAt:     new Date(),
-          notes:          'تمت الموافقة تلقائياً عبر OxaPay',
-        },
+        data:  { subscriptionId: subscription.id },
       })
     );
 
     await withDb(() =>
       prisma.adminLog.create({
         data: {
-          adminId:  payment.userId, // system action — use user's own ID
+          adminId:  payment.userId,
           targetId: payment.userId,
           action:   'PAYMENT_AUTO_APPROVED',
-          details:  `OxaPay webhook: payment ${orderId} (trackId: ${trackId}) approved automatically`,
+          details:  `OxaPay webhook: payment ${orderId} (trackId: ${trackId ?? 'n/a'}) approved automatically`,
         },
       })
     );
 
     console.log(`[oxapayWebhook] ✅ Payment ${orderId} auto-approved — subscription ${subscription.id} activated`);
+
+    // Respond success AFTER durable processing so OxaPay retries on failures
+    res.json({ success: true });
   } catch (err) {
     console.error('[oxapayWebhook]', errMsg(err));
-    // Don't send error response — we already sent 200 above
+    // Return 500 so OxaPay retries — webhook was not durably processed
+    if (!res.headersSent) {
+      res.status(500).json({ success: false, message: 'Processing error — will retry' });
+    }
   }
 };
 
