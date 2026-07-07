@@ -15,6 +15,7 @@ import settingsRoutes from './routes/settings.routes';
 import gamesRoutes from './routes/games.routes';
 import scheduleRoutes from './routes/schedule.routes';
 import proxyRoutes from './routes/proxy.routes';
+import { oxapayWebhook } from './controllers/payment.controller';
 import prisma from './utils/prisma';
 import { resumeActiveGroups } from './utils/scheduler';
 
@@ -30,18 +31,21 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(morgan('dev'));
 
+// ── OxaPay Webhook — registered BEFORE rate limiters ────────────────────────
+// This endpoint is called by OxaPay's servers and must never be rate-limited.
+// It is secured via HMAC-SHA512 signature verification inside the handler.
+app.post('/api/payments/oxapay-webhook', oxapayWebhook);
+
 // ── Rate limiters ─────────────────────────────────────────────────────────────
-// Auth routes: more lenient — mobile apps retry and users may mistype passwords
 const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 min
-  max: 60,                   // 60 attempts per IP per window
+  windowMs: 15 * 60 * 1000,
+  max: 60,
   standardHeaders: true,
   legacyHeaders: false,
   message: { success: false, message: 'طلبات كثيرة جداً، حاول بعد قليل.' },
   skip: (_req) => process.env.NODE_ENV === 'development',
 });
 
-// General API limiter
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 300,
@@ -52,16 +56,16 @@ const apiLimiter = rateLimit({
 });
 
 // ── Routes ────────────────────────────────────────────────────────────────────
-app.use('/api/auth', authLimiter, authRoutes);
-app.use('/api/users', apiLimiter, userRoutes);
-app.use('/api/plans', apiLimiter, planRoutes);
-app.use('/api/payments', apiLimiter, paymentRoutes);
-app.use('/api/subscriptions', apiLimiter, subscriptionRoutes);
-app.use('/api/admin', apiLimiter, adminRoutes);
-app.use('/api/settings', apiLimiter, settingsRoutes);
-app.use('/api/games', apiLimiter, gamesRoutes);
-app.use('/api/schedule', apiLimiter, scheduleRoutes);
-app.use('/api/proxies', apiLimiter, proxyRoutes);
+app.use('/api/auth',          authLimiter, authRoutes);
+app.use('/api/users',         apiLimiter,  userRoutes);
+app.use('/api/plans',         apiLimiter,  planRoutes);
+app.use('/api/payments',      apiLimiter,  paymentRoutes);
+app.use('/api/subscriptions', apiLimiter,  subscriptionRoutes);
+app.use('/api/admin',         apiLimiter,  adminRoutes);
+app.use('/api/settings',      apiLimiter,  settingsRoutes);
+app.use('/api/games',         apiLimiter,  gamesRoutes);
+app.use('/api/schedule',      apiLimiter,  scheduleRoutes);
+app.use('/api/proxies',       apiLimiter,  proxyRoutes);
 
 // ── Health check ──────────────────────────────────────────────────────────────
 app.get('/api/health', async (_req, res) => {
@@ -75,7 +79,6 @@ app.get('/api/health', async (_req, res) => {
     });
   } catch (err) {
     console.error('[health] DB check failed:', err);
-    // Attempt reconnect
     try { await prisma.$connect(); } catch { /* ignore */ }
     res.status(503).json({
       success: false,
@@ -124,7 +127,7 @@ async function bootstrap(): Promise<void> {
 
 process.on('SIGINT',  async () => { await prisma.$disconnect(); process.exit(0); });
 process.on('SIGTERM', async () => { await prisma.$disconnect(); process.exit(0); });
-process.on('uncaughtException', (err) => { console.error('[uncaughtException]', err); });
+process.on('uncaughtException',  (err)    => { console.error('[uncaughtException]',  err); });
 process.on('unhandledRejection', (reason) => { console.error('[unhandledRejection]', reason); });
 
 bootstrap();

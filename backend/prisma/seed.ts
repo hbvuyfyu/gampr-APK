@@ -54,20 +54,34 @@ async function main() {
 
   // Create default settings
   const defaultSettings = [
-    { key: 'app_name', value: 'GAME EVENT', group: 'general' },
-    { key: 'app_name_ar', value: 'جيم إيفنت', group: 'general' },
-    { key: 'sham_cash_address', value: '0900000000', group: 'payment' },
-    { key: 'syriatel_cash_address', value: '0930000000', group: 'payment' },
-    { key: 'usdt_bep20_address', value: 'TRx...USDT_ADDRESS_HERE', group: 'payment' },
-    { key: 'sham_cash_instructions', value: 'قم بإرسال المبلغ إلى رقم Sham Cash المذكور ثم ارفع صورة الإيصال', group: 'payment' },
+    // General
+    { key: 'app_name',    value: 'GAME EVENT',   group: 'general' },
+    { key: 'app_name_ar', value: 'جيم إيفنت',   group: 'general' },
+
+    // Payment — local methods
+    { key: 'sham_cash_address',          value: '0900000000',              group: 'payment' },
+    { key: 'syriatel_cash_address',      value: '0930000000',              group: 'payment' },
+    { key: 'usdt_bep20_address',         value: 'TRx...USDT_ADDRESS_HERE', group: 'payment' },
+    { key: 'sham_cash_instructions',     value: 'قم بإرسال المبلغ إلى رقم Sham Cash المذكور ثم ارفع صورة الإيصال', group: 'payment' },
     { key: 'syriatel_cash_instructions', value: 'قم بإرسال المبلغ إلى رقم Syriatel Cash المذكور ثم ارفع صورة الإيصال', group: 'payment' },
-    { key: 'usdt_instructions', value: 'قم بإرسال المبلغ بالـ USDT على شبكة BEP20 ثم أدخل رقم المعاملة TXID', group: 'payment' },
+    { key: 'usdt_instructions',          value: 'قم بإرسال المبلغ بالـ USDT على شبكة BEP20 ثم أدخل رقم المعاملة TXID', group: 'payment' },
+
+    // Cloudinary
     { key: 'cloudinary_cloud_name', value: '', group: 'cloudinary' },
-    { key: 'cloudinary_api_key', value: '', group: 'cloudinary' },
+    { key: 'cloudinary_api_key',    value: '', group: 'cloudinary' },
     { key: 'cloudinary_api_secret', value: '', group: 'cloudinary' },
-    { key: 'bscscan_api_key', value: '', group: 'blockchain' },
-    { key: 'usdt_contract_address', value: '0x55d398326f99059fF775485246999027B3197955', group: 'blockchain' },
-    { key: 'min_usdt_confirmations', value: '1', group: 'blockchain' },
+
+    // BscScan / USDT manual verification
+    { key: 'bscscan_api_key',            value: '',                                         group: 'blockchain' },
+    { key: 'usdt_contract_address',      value: '0x55d398326f99059fF775485246999027B3197955', group: 'blockchain' },
+    { key: 'min_usdt_confirmations',     value: '1',                                        group: 'blockchain' },
+
+    // OxaPay — USDT automated payment gateway
+    { key: 'oxapay_merchant_key',    value: '',    group: 'oxapay' },
+    { key: 'oxapay_currency',        value: 'USD', group: 'oxapay' },
+    { key: 'oxapay_lifetime',        value: '30',  group: 'oxapay' },
+    { key: 'oxapay_fee_paid_by_payer', value: '0', group: 'oxapay' },
+    { key: 'oxapay_app_url',         value: 'https://gampr-apk-production.up.railway.app', group: 'oxapay' },
   ];
 
   for (const setting of defaultSettings) {
@@ -77,7 +91,7 @@ async function main() {
       create: setting,
     });
   }
-  console.log('Settings created');
+  console.log('Settings created (including OxaPay defaults)');
 }
 
 main()

@@ -22,6 +22,7 @@ enum PaymentMethod {
   SHAM_CASH
   SYRIATEL_CASH
   USDT_BEP20
+  OXAPAY_USDT
 }
 
 enum SubscriptionStatus {
@@ -99,6 +100,7 @@ model Payment {
   proofImageBase64 String?
   txid             String?       @unique
   txidVerified     Boolean       @default(false)
+  oxapayTrackId    String?
   notes            String?
   adminNotes       String?
   reviewedBy       String?

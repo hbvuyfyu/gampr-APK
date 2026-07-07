@@ -34,6 +34,9 @@ dependencies:
   # Routing
   go_router: ^13.0.0
 
+  # WebView (for OxaPay payment gateway)
+  webview_flutter: ^4.7.0
+
   # Misc
   intl: ^0.20.2
   url_launcher: ^6.2.2

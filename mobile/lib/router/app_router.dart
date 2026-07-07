@@ -10,6 +10,7 @@ import '../screens/subscription/plans_screen.dart';
 import '../screens/payment/payment_screen.dart';
 import '../screens/payment/payment_proof_screen.dart';
 import '../screens/payment/usdt_payment_screen.dart';
+import '../screens/payment/oxapay_payment_screen.dart';
 import '../screens/engine/engine_guard_screen.dart';
 import '../screens/profile/profile_screen.dart';
 import '../screens/admin/admin_dashboard_screen.dart';
@@ -43,15 +44,34 @@ class AppRouter {
             GoRoute(path: '/plans',  builder: (_, __) => const PlansScreen()),
             GoRoute(
               path: '/payment/:planId',
-              builder: (_, state) => PaymentScreen(planId: state.pathParameters['planId']!),
+              builder: (_, state) => PaymentScreen(
+                planId: state.pathParameters['planId']!,
+              ),
             ),
             GoRoute(
               path: '/payment/:paymentId/proof',
-              builder: (_, state) => PaymentProofScreen(paymentId: state.pathParameters['paymentId']!),
+              builder: (_, state) => PaymentProofScreen(
+                paymentId: state.pathParameters['paymentId']!,
+              ),
             ),
             GoRoute(
               path: '/payment/:paymentId/usdt',
-              builder: (_, state) => UsdtPaymentScreen(paymentId: state.pathParameters['paymentId']!),
+              builder: (_, state) => UsdtPaymentScreen(
+                paymentId: state.pathParameters['paymentId']!,
+              ),
+            ),
+            // OxaPay WebView payment screen
+            GoRoute(
+              path: '/payment/:paymentId/oxapay',
+              builder: (_, state) {
+                final paymentId = state.pathParameters['paymentId']!;
+                final encodedPayLink = state.uri.queryParameters['payLink'] ?? '';
+                final payLink = Uri.decodeComponent(encodedPayLink);
+                return OxaPayPaymentScreen(
+                  paymentId: paymentId,
+                  payLink:   payLink,
+                );
+              },
             ),
             GoRoute(path: '/engine',  builder: (_, __) => const EngineGuardScreen()),
             GoRoute(path: '/profile', builder: (_, __) => const ProfileScreen()),

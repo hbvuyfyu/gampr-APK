@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../services/api_service.dart';
+import '../../config/app_config.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/gradient_button.dart';
 
@@ -18,7 +19,10 @@ class _PaymentScreenState extends State<PaymentScreen> {
   bool _processing = false;
 
   @override
-  void initState() { super.initState(); _loadData(); }
+  void initState() {
+    super.initState();
+    _loadData();
+  }
 
   Future<void> _loadData() async {
     try {
@@ -43,25 +47,14 @@ class _PaymentScreenState extends State<PaymentScreen> {
       ));
       return;
     }
+
     setState(() => _processing = true);
+
     try {
-      final res = await ApiService.post('/payments', {
-        'planId': widget.planId,
-        'method': _selectedMethod,
-      });
-      if (!mounted) return;
-      if (res['success'] == true) {
-        final paymentId = (res['data'] as Map<String, dynamic>)['id'] as String;
-        if (_selectedMethod == 'USDT_BEP20') {
-          context.push('/payment/$paymentId/usdt');
-        } else {
-          context.push('/payment/$paymentId/proof');
-        }
+      if (_selectedMethod == 'OXAPAY_USDT') {
+        await _proceedOxaPay();
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(res['message']?.toString() ?? 'خطأ في إنشاء طلب الدفع', style: const TextStyle(fontFamily: 'Cairo')),
-          backgroundColor: AppTheme.error,
-        ));
+        await _proceedStandard();
       }
     } catch (_) {
       if (!mounted) return;
@@ -70,7 +63,57 @@ class _PaymentScreenState extends State<PaymentScreen> {
         backgroundColor: AppTheme.error,
       ));
     }
-    setState(() => _processing = false);
+
+    if (mounted) setState(() => _processing = false);
+  }
+
+  // OxaPay: create invoice and open WebView
+  Future<void> _proceedOxaPay() async {
+    final res = await ApiService.post('/payments/oxapay/invoice', {
+      'planId': widget.planId,
+    });
+    if (!mounted) return;
+
+    if (res['success'] == true) {
+      final data      = res['data'] as Map<String, dynamic>;
+      final paymentId = data['paymentId'] as String;
+      final payLink   = data['payLink']   as String;
+      context.push('/payment/$paymentId/oxapay?payLink=${Uri.encodeComponent(payLink)}');
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(
+          res['message']?.toString() ?? 'فشل إنشاء فاتورة OxaPay',
+          style: const TextStyle(fontFamily: 'Cairo'),
+        ),
+        backgroundColor: AppTheme.error,
+      ));
+    }
+  }
+
+  // Standard methods (Sham Cash, Syriatel, USDT BEP20 manual)
+  Future<void> _proceedStandard() async {
+    final res = await ApiService.post('/payments', {
+      'planId': widget.planId,
+      'method': _selectedMethod,
+    });
+    if (!mounted) return;
+
+    if (res['success'] == true) {
+      final paymentId = (res['data'] as Map<String, dynamic>)['id'] as String;
+      if (_selectedMethod == 'USDT_BEP20') {
+        context.push('/payment/$paymentId/usdt');
+      } else {
+        context.push('/payment/$paymentId/proof');
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(
+          res['message']?.toString() ?? 'خطأ في إنشاء طلب الدفع',
+          style: const TextStyle(fontFamily: 'Cairo'),
+        ),
+        backgroundColor: AppTheme.error,
+      ));
+    }
   }
 
   @override
@@ -78,14 +121,27 @@ class _PaymentScreenState extends State<PaymentScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('إتمام الدفع'),
-        leading: IconButton(icon: const Icon(Icons.arrow_back_ios), onPressed: () => context.pop()),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios),
+          onPressed: () => context.pop(),
+        ),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator(color: AppTheme.primary))
-          : SingleChildScrollView(padding: const EdgeInsets.all(20), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              _buildSummary(), const SizedBox(height: 24), _buildMethods(), const SizedBox(height: 24),
-              GradientButton(onPressed: _processing ? null : _proceed, isLoading: _processing, text: 'متابعة'),
-            ])),
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                _buildSummary(),
+                const SizedBox(height: 24),
+                _buildMethods(),
+                const SizedBox(height: 24),
+                GradientButton(
+                  onPressed: _processing ? null : _proceed,
+                  isLoading: _processing,
+                  text: 'متابعة',
+                ),
+              ]),
+            ),
     );
   }
 
@@ -94,29 +150,92 @@ class _PaymentScreenState extends State<PaymentScreen> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(colors: [Color(0xFF1A1A1A), Color(0xFF0A0A0A)]),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF1A1A1A), Color(0xFF0A0A0A)],
+        ),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppTheme.glassBorder, width: 0.5),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.5), blurRadius: 20, offset: const Offset(0, 8))],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.5),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          )
+        ],
       ),
       child: Row(children: [
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(_plan!['name'] ?? '', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.textPrimary, fontFamily: 'Cairo')),
-          Text('${_plan!['durationDays']} يوم | ${_plan!['dailyOperations']} عملية/يوم', style: const TextStyle(color: AppTheme.textSecondary, fontFamily: 'Cairo')),
-        ])),
-        Text('\$${_plan!['price']}', style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: AppTheme.accent, fontFamily: 'Cairo')),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(
+              _plan!['name'] ?? '',
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.textPrimary,
+                fontFamily: 'Cairo',
+              ),
+            ),
+            Text(
+              '${_plan!['durationDays']} يوم | ${_plan!['dailyOperations']} عملية/يوم',
+              style: const TextStyle(color: AppTheme.textSecondary, fontFamily: 'Cairo'),
+            ),
+          ]),
+        ),
+        Text(
+          '\$${_plan!['price']}',
+          style: const TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.bold,
+            color: AppTheme.accent,
+            fontFamily: 'Cairo',
+          ),
+        ),
       ]),
     );
   }
 
   Widget _buildMethods() {
     final methods = [
-      {'value': 'SHAM_CASH', 'label': 'Sham Cash', 'icon': Icons.account_balance_wallet_outlined, 'color': AppTheme.primary},
-      {'value': 'SYRIATEL_CASH', 'label': 'Syriatel Cash', 'icon': Icons.phone_android_outlined, 'color': AppTheme.success},
-      {'value': 'USDT_BEP20', 'label': 'USDT BEP20', 'icon': Icons.currency_bitcoin, 'color': AppTheme.accent},
+      {
+        'value': 'SHAM_CASH',
+        'label': 'Sham Cash',
+        'icon': Icons.account_balance_wallet_outlined,
+        'color': AppTheme.primary,
+        'badge': null,
+      },
+      {
+        'value': 'SYRIATEL_CASH',
+        'label': 'Syriatel Cash',
+        'icon': Icons.phone_android_outlined,
+        'color': AppTheme.success,
+        'badge': null,
+      },
+      {
+        'value': 'USDT_BEP20',
+        'label': 'USDT BEP20 (يدوي)',
+        'icon': Icons.currency_bitcoin,
+        'color': AppTheme.accent,
+        'badge': null,
+      },
+      {
+        'value': 'OXAPAY_USDT',
+        'label': 'USDT عبر OxaPay',
+        'icon': Icons.bolt_outlined,
+        'color': const Color(0xFF10B981),
+        'badge': 'تلقائي ✓',
+      },
     ];
+
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const Text('طريقة الدفع', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.textPrimary, fontFamily: 'Cairo')),
+      const Text(
+        'طريقة الدفع',
+        style: TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+          color: AppTheme.textPrimary,
+          fontFamily: 'Cairo',
+        ),
+      ),
       const SizedBox(height: 12),
       ...methods.map((m) => Padding(
         padding: const EdgeInsets.only(bottom: 12),
@@ -126,15 +245,59 @@ class _PaymentScreenState extends State<PaymentScreen> {
           child: Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: _selectedMethod == m['value'] ? (m['color'] as Color).withOpacity(0.15) : AppTheme.cardBg,
+              color: _selectedMethod == m['value']
+                  ? (m['color'] as Color).withOpacity(0.15)
+                  : AppTheme.cardBg,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: _selectedMethod == m['value'] ? m['color'] as Color : AppTheme.border, width: _selectedMethod == m['value'] ? 2 : 1),
+              border: Border.all(
+                color: _selectedMethod == m['value']
+                    ? m['color'] as Color
+                    : AppTheme.border,
+                width: _selectedMethod == m['value'] ? 2 : 1,
+              ),
             ),
             child: Row(children: [
-              Icon(m['icon'] as IconData, color: m['color'] as Color, size: 28), const SizedBox(width: 16),
-              Text(m['label'] as String, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: _selectedMethod == m['value'] ? AppTheme.textPrimary : AppTheme.textSecondary, fontFamily: 'Cairo')),
-              const Spacer(),
-              if (_selectedMethod == m['value']) Icon(Icons.check_circle, color: m['color'] as Color, size: 24),
+              Icon(m['icon'] as IconData, color: m['color'] as Color, size: 28),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(
+                    m['label'] as String,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: _selectedMethod == m['value']
+                          ? AppTheme.textPrimary
+                          : AppTheme.textSecondary,
+                      fontFamily: 'Cairo',
+                    ),
+                  ),
+                  if (m['badge'] != null) ...[
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: (m['color'] as Color).withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: (m['color'] as Color).withOpacity(0.5),
+                        ),
+                      ),
+                      child: Text(
+                        m['badge'] as String,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: m['color'] as Color,
+                          fontFamily: 'Cairo',
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ]),
+              ),
+              if (_selectedMethod == m['value'])
+                Icon(Icons.check_circle, color: m['color'] as Color, size: 24),
             ]),
           ),
         ),
