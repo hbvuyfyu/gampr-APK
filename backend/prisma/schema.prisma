@@ -1,0 +1,262 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum PaymentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum PaymentMethod {
+  SHAM_CASH
+  SYRIATEL_CASH
+  USDT_BEP20
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  EXPIRED
+  CANCELLED
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  password      String
+  name          String?
+  role          UserRole  @default(USER)
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  subscriptions Subscription[]
+  payments      Payment[]
+  dailyUsages   DailyUsage[]
+  adminLogs     AdminLog[]     @relation("AdminLogs")
+  targetLogs    AdminLog[]     @relation("TargetLogs")
+  schedGroups   SchedGroup[]
+  proxies       Proxy[]
+  proxySelection UserProxySelection?
+
+  @@map("users")
+}
+
+model Plan {
+  id              String   @id @default(uuid())
+  name            String
+  nameAr          String
+  durationDays    Int
+  dailyOperations Int
+  price           Float
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  subscriptions Subscription[]
+  payments      Payment[]
+
+  @@map("plans")
+}
+
+model Subscription {
+  id          String             @id @default(uuid())
+  userId      String
+  planId      String
+  status      SubscriptionStatus @default(ACTIVE)
+  startDate   DateTime           @default(now())
+  endDate     DateTime
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan        Plan               @relation(fields: [planId], references: [id])
+  payments    Payment[]
+  dailyUsages DailyUsage[]
+
+  @@map("subscriptions")
+}
+
+model Payment {
+  id               String        @id @default(uuid())
+  userId           String
+  planId           String
+  subscriptionId   String?
+  method           PaymentMethod
+  status           PaymentStatus @default(PENDING)
+  amount           Float
+  proofImageUrl    String?
+  proofImageBase64 String?
+  txid             String?       @unique
+  txidVerified     Boolean       @default(false)
+  notes            String?
+  adminNotes       String?
+  reviewedBy       String?
+  reviewedAt       DateTime?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan         Plan          @relation(fields: [planId], references: [id])
+  subscription Subscription? @relation(fields: [subscriptionId], references: [id])
+
+  @@map("payments")
+}
+
+model DailyUsage {
+  id             String   @id @default(uuid())
+  userId         String
+  subscriptionId String
+  date           DateTime @default(now()) @db.Date
+  operationsUsed Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, subscriptionId, date])
+  @@map("daily_usages")
+}
+
+model AdminLog {
+  id         String   @id @default(uuid())
+  adminId    String
+  targetId   String?
+  action     String
+  details    String?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  admin      User     @relation("AdminLogs", fields: [adminId], references: [id])
+  target     User?    @relation("TargetLogs", fields: [targetId], references: [id])
+
+  @@map("admin_logs")
+}
+
+model Settings {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     String
+  group     String   @default("general")
+  updatedAt DateTime @updatedAt
+
+  @@map("settings")
+}
+
+model UsedTxid {
+  id        String   @id @default(uuid())
+  txid      String   @unique
+  userId    String
+  createdAt DateTime @default(now())
+
+  @@map("used_txids")
+}
+
+// ── Dynamic Games added by admin ─────────────────────────────────────────────
+
+model Game {
+  id          String      @id @default(uuid())
+  name        String
+  displayName String
+  platform    String      // 'af' | 'singular' | 'adj'
+  package     String?
+  devKey      String?
+  appKey      String?
+  appToken    String?
+  emoji       String      @default("🎮")
+  isActive    Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  events      GameEvent[]
+
+  @@map("games")
+}
+
+model GameEvent {
+  id          String   @id @default(uuid())
+  gameId      String
+  eventName   String
+  displayName String
+  eventToken  String?
+  isPurchase  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  game        Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@map("game_events")
+}
+
+// ── Scheduling groups (جدولة العمليات) ──────────────────────────────────────
+
+model SchedGroup {
+  id              String   @id @default(uuid())
+  userId          String
+  platform        String   // 'af' | 'singular' | 'adj'
+  gameId          String?
+  gameName        String
+  gamePkg         String?
+  gameKey         String?  // devKey (af) | appKey (singular) | appToken (adj)
+  eventsOrder     String   // JSON: list of {level, interval} or {token, interval} or [[id, name], ...]
+  intervalMinutes Int      // -1 = custom per-level, 0 = immediate, >0 = unified interval
+  gaid            String
+  afUid           String?
+  status          String   @default("active") // 'active' | 'stopped' | 'completed'
+  createdAt       DateTime @default(now())
+  nextRun         DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@map("sched_groups")
+}
+
+// ── Proxies (بروكسي) ──────────────────────────────────────────────────────────
+
+model Proxy {
+  id        String   @id @default(uuid())
+  userId    String
+  name      String
+  type      String   // 'socks5' | 'http'
+  host      String
+  port      Int
+  username  String?
+  password  String?
+  isActive  Boolean  @default(true)
+  isWorking Boolean  @default(false)
+  lastCheck DateTime?
+  lastError String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  selection UserProxySelection?
+
+  @@index([userId])
+  @@map("proxies")
+}
+
+model UserProxySelection {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  proxyId   String?  @unique
+  updatedAt DateTime @updatedAt
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  proxy     Proxy?   @relation(fields: [proxyId], references: [id], onDelete: SetNull)
+
+  @@map("user_proxy_selections")
+}
