@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { authenticate } from '../middleware/auth.middleware';
 import {
-  detectGame, sendEvent, getDailyUsage, listGames,
+  detectGame, sendEvent, getDailyUsage, listGames, getGameDetail,
   adminListGames, adminCreateGame, adminUpdateGame, adminDeleteGame,
   adminAddGameEvent, adminDeleteGameEvent,
 } from '../controllers/games.controller';
@@ -11,6 +11,7 @@ const router = Router();
 // Public
 router.get('/detect', detectGame);
 router.get('/list', listGames);
+router.get('/detail', getGameDetail);
 
 // Requires auth
 router.post('/send-event', authenticate, sendEvent);

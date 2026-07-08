@@ -12,6 +12,7 @@ import '../screens/payment/payment_proof_screen.dart';
 import '../screens/payment/usdt_payment_screen.dart';
 import '../screens/payment/oxapay_payment_screen.dart';
 import '../screens/engine/engine_guard_screen.dart';
+import '../screens/engine/remote_engine_hub_screen.dart';
 import '../screens/profile/profile_screen.dart';
 import '../screens/admin/admin_dashboard_screen.dart';
 import '../screens/admin/admin_users_screen.dart';
@@ -75,6 +76,7 @@ class AppRouter {
               },
             ),
             GoRoute(path: '/engine',  builder: (_, __) => const EngineGuardScreen()),
+            GoRoute(path: '/remote-engine', builder: (_, __) => const RemoteEngineHubScreen()),
             GoRoute(path: '/profile', builder: (_, __) => const ProfileScreen()),
             GoRoute(path: '/admin',            builder: (_, __) => const AdminDashboardScreen()),
             GoRoute(path: '/admin/users',      builder: (_, __) => const AdminUsersScreen()),

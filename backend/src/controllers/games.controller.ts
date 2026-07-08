@@ -120,6 +120,95 @@ export async function detectGame(req: Request, res: Response): Promise<void> {
   res.json({ success: true, found: false, message: 'Game not in supported list' });
 }
 
+// ── Get Game Detail (for manual/remote selection — by name or db id) ─────────
+// Used by the "جمبرة عن بعد" (remote) flow: user picks platform + game manually
+// instead of on-device auto-detection, so we need full event/key data keyed
+// by name (static catalog) or id (admin-added db games) rather than by package.
+
+export async function getGameDetail(req: Request, res: Response): Promise<void> {
+  const platform = ((req.query.platform as string) || '').trim();
+  const source = ((req.query.source as string) || 'static').trim();
+  const name = ((req.query.name as string) || '').trim();
+  const id = ((req.query.id as string) || '').trim();
+
+  if (!platform) {
+    res.status(400).json({ success: false, message: 'platform is required' });
+    return;
+  }
+
+  try {
+    if (source === 'db') {
+      if (!id) {
+        res.status(400).json({ success: false, message: 'id is required for db source' });
+        return;
+      }
+      const dbGame = await prisma.game.findFirst({
+        where: { id, platform, isActive: true },
+        include: { events: true },
+      });
+      if (!dbGame) {
+        res.json({ success: true, found: false, message: 'Game not found' });
+        return;
+      }
+      const events = dbGame.events.map(e => ({
+        eventName: e.eventName,
+        displayName: e.displayName,
+        eventToken: e.eventToken,
+        isPurchase: e.isPurchase,
+      }));
+      const firstEvent = events.find(e => !e.isPurchase) || events[0] || null;
+      const gameData: any = {
+        id: dbGame.id,
+        name: dbGame.name,
+        displayName: dbGame.displayName,
+        package: dbGame.package,
+        emoji: dbGame.emoji,
+        events,
+      };
+      if (dbGame.platform === 'af') gameData.devKey = dbGame.devKey;
+      else if (dbGame.platform === 'singular') gameData.appKey = dbGame.appKey;
+      else if (dbGame.platform === 'adj') gameData.appToken = dbGame.appToken;
+
+      res.json({ success: true, found: true, platform: dbGame.platform, game: gameData, firstEvent, source: 'db' });
+      return;
+    }
+
+    // static catalog lookup by name
+    if (!name) {
+      res.status(400).json({ success: false, message: 'name is required for static source' });
+      return;
+    }
+    const { AF_GAMES, SINGULAR_GAMES, ADJ_GAMES } = await import('../data/games_data');
+
+    let gameData: any = null;
+    let events: any[] = [];
+
+    if (platform === 'af') {
+      const g = AF_GAMES.find((x: AfGame) => x.name === name);
+      if (g) { gameData = { name: g.name, displayName: g.displayName, package: g.package, devKey: g.devKey, emoji: g.emoji }; events = g.events; }
+    } else if (platform === 'singular') {
+      const g = SINGULAR_GAMES.find((x: SingularGame) => x.name === name);
+      if (g) { gameData = { name: g.name, displayName: g.displayName, package: g.package, appKey: g.appKey, emoji: g.emoji }; events = g.events; }
+    } else if (platform === 'adj') {
+      const g = ADJ_GAMES.find((x: AdjGame) => x.name === name);
+      if (g) { gameData = { name: g.name, displayName: g.displayName, appToken: g.appToken, emoji: g.emoji }; events = g.events; }
+    } else {
+      res.status(400).json({ success: false, message: 'Unknown platform. Use: af, adj, singular' });
+      return;
+    }
+
+    if (!gameData) {
+      res.json({ success: true, found: false, message: 'Game not found' });
+      return;
+    }
+
+    const firstEvent = platform === 'af' ? (events.find((e: any) => !e.isPurchase) || events[0] || null) : (events[0] || null);
+    res.json({ success: true, found: true, platform, game: { ...gameData, events }, firstEvent, source: 'static' });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: String(err.message) });
+  }
+}
+
 // ── HTTP send helpers (exported for scheduler) ───────────────────────────────
 
 export async function sendAF(

@@ -174,6 +174,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   Widget _buildQuickActions(BuildContext context) {
     final actions = [
       {'icon': Icons.rocket_launch_outlined, 'label': 'Engine', 'route': '/engine'},
+      {'icon': Icons.satellite_alt_outlined, 'label': 'جمبرة عن بعد', 'route': '/remote-engine'},
       {'icon': Icons.card_membership_outlined, 'label': 'الباقات', 'route': '/plans'},
       {'icon': Icons.history_outlined, 'label': 'سجل الدفع', 'route': '/profile'},
       {'icon': Icons.person_outline, 'label': 'حسابي', 'route': '/profile'},
