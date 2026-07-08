@@ -441,6 +441,166 @@ export const AF_GAMES: AfGame[] = [
       { eventName: 'Purchase_Daily_Gem_Pack_(9.99$)', displayName: 'Purchase Daily Gem Pack (9.99$)', eventType: 'purchase', isPurchase: true },
       { eventName: 'Purchase_Daily_Gem_Pack_(10.99$)', displayName: 'Purchase Daily Gem Pack (10.99$)', eventType: 'purchase', isPurchase: true }
     ],
+  },
+  {
+    name: 'klondike_adventures', displayName: 'Klondike Adventures', package: 'com.vizorapps.klondike',
+    devKey: 'B3E3DvVKsFLfGWrNg4WtWU', emoji: '🃏',
+    events: [
+      { eventName: 'm_lv_spec', displayName: 'Level 1', eventType: 'level', isPurchase: false },
+      { eventName: 'm_2v_spec', displayName: 'Level 2', eventType: 'level', isPurchase: false },
+      { eventName: 'm_3v_spec', displayName: 'Level 3', eventType: 'level', isPurchase: false },
+      { eventName: 'm_4v_spec', displayName: 'Level 4', eventType: 'level', isPurchase: false },
+      { eventName: 'm_5v_spec', displayName: 'Level 5', eventType: 'level', isPurchase: false },
+      { eventName: 'm_6v_spec', displayName: 'Level 6', eventType: 'level', isPurchase: false },
+      { eventName: 'm_7v_spec', displayName: 'Level 7', eventType: 'level', isPurchase: false },
+      { eventName: 'm_8v_spec', displayName: 'Level 8', eventType: 'level', isPurchase: false },
+      { eventName: 'm_9v_spec', displayName: 'Level 9', eventType: 'level', isPurchase: false },
+      { eventName: 'm_10v_spec', displayName: 'Level 10', eventType: 'level', isPurchase: false }
+    ],
+  },
+  {
+    name: 'go_down', displayName: 'Go Down', package: 'com.tree.godown',
+    devKey: 'k9DgPmNnDa2bRKfajfZAEi', emoji: '⬇️',
+    events: [
+      { eventName: 'game_win1', displayName: 'Win 1', eventType: 'win', isPurchase: false },
+      { eventName: 'game_win2', displayName: 'Win 2', eventType: 'win', isPurchase: false },
+      { eventName: 'game_win3', displayName: 'Win 3', eventType: 'win', isPurchase: false },
+      { eventName: 'game_win4', displayName: 'Win 4', eventType: 'win', isPurchase: false },
+      { eventName: 'game_win5', displayName: 'Win 5', eventType: 'win', isPurchase: false },
+      { eventName: 'game_win6', displayName: 'Win 6', eventType: 'win', isPurchase: false },
+      { eventName: 'game_win7', displayName: 'Win 7', eventType: 'win', isPurchase: false },
+      { eventName: 'game_win8', displayName: 'Win 8', eventType: 'win', isPurchase: false },
+      { eventName: 'game_win9', displayName: 'Win 9', eventType: 'win', isPurchase: false },
+      { eventName: 'game_win10', displayName: 'Win 10', eventType: 'win', isPurchase: false }
+    ],
+  },
+  {
+    name: 'daily_spider_solitaire', displayName: 'Daily Spider Solitaire', package: 'com.bigcake.android.spidersolitaire',
+    devKey: 'k9DgPmNnDa2bRKfajfZAEi', emoji: '🕷️',
+    events: [
+      { eventName: 'pz_level1', displayName: 'Level 1', eventType: 'level', isPurchase: false },
+      { eventName: 'pz_level2', displayName: 'Level 2', eventType: 'level', isPurchase: false },
+      { eventName: 'pz_level3', displayName: 'Level 3', eventType: 'level', isPurchase: false },
+      { eventName: 'pz_level4', displayName: 'Level 4', eventType: 'level', isPurchase: false },
+      { eventName: 'pz_level5', displayName: 'Level 5', eventType: 'level', isPurchase: false },
+      { eventName: 'pz_level6', displayName: 'Level 6', eventType: 'level', isPurchase: false },
+      { eventName: 'pz_level7', displayName: 'Level 7', eventType: 'level', isPurchase: false },
+      { eventName: 'pz_level8', displayName: 'Level 8', eventType: 'level', isPurchase: false },
+      { eventName: 'pz_level9', displayName: 'Level 9', eventType: 'level', isPurchase: false },
+      { eventName: 'pz_level10', displayName: 'Level 10', eventType: 'level', isPurchase: false }
+    ],
+  },
+  {
+    name: 'dice_puzzle', displayName: 'Dice Puzzle', package: 'com.bigcake.android.dicemerge',
+    devKey: 'k9DgPmNnDa2bRKfajfZAEi', emoji: '🎲',
+    events: [
+      { eventName: 'game_win1', displayName: 'Win 1', eventType: 'win', isPurchase: false },
+      { eventName: 'game_win2', displayName: 'Win 2', eventType: 'win', isPurchase: false },
+      { eventName: 'game_win3', displayName: 'Win 3', eventType: 'win', isPurchase: false },
+      { eventName: 'game_win4', displayName: 'Win 4', eventType: 'win', isPurchase: false },
+      { eventName: 'game_win5', displayName: 'Win 5', eventType: 'win', isPurchase: false },
+      { eventName: 'game_win6', displayName: 'Win 6', eventType: 'win', isPurchase: false },
+      { eventName: 'game_win7', displayName: 'Win 7', eventType: 'win', isPurchase: false },
+      { eventName: 'game_win8', displayName: 'Win 8', eventType: 'win', isPurchase: false },
+      { eventName: 'game_win9', displayName: 'Win 9', eventType: 'win', isPurchase: false },
+      { eventName: 'game_win10', displayName: 'Win 10', eventType: 'win', isPurchase: false }
+    ],
+  },
+  {
+    name: 'ant_hero', displayName: 'Ant Hero', package: 'com.gaimstudio.antcastledefense',
+    devKey: 'fZvuk792H9hJQKmaTwuXxA', emoji: '🐜',
+    events: [
+      { eventName: 'T0C1', displayName: 'Chapter 1', eventType: 'level', isPurchase: false },
+      { eventName: 'T0C2', displayName: 'Chapter 2', eventType: 'level', isPurchase: false },
+      { eventName: 'T0C3', displayName: 'Chapter 3', eventType: 'level', isPurchase: false },
+      { eventName: 'T0C4', displayName: 'Chapter 4', eventType: 'level', isPurchase: false },
+      { eventName: 'T0C5', displayName: 'Chapter 5', eventType: 'level', isPurchase: false },
+      { eventName: 'T0C6', displayName: 'Chapter 6', eventType: 'level', isPurchase: false },
+      { eventName: 'T0C7', displayName: 'Chapter 7', eventType: 'level', isPurchase: false },
+      { eventName: 'T0C8', displayName: 'Chapter 8', eventType: 'level', isPurchase: false },
+      { eventName: 'T0C9', displayName: 'Chapter 9', eventType: 'level', isPurchase: false },
+      { eventName: 'T0C10', displayName: 'Chapter 10', eventType: 'level', isPurchase: false }
+    ],
+  },
+  {
+    name: 'bingo_journey', displayName: 'Bingo Journey', package: 'com.bingo.scape.android.free',
+    devKey: 'norofMYQp2CymF4fXCv36B', emoji: '🎱',
+    events: [
+      { eventName: 'level_win_0-0-001', displayName: 'Level 1', eventType: 'level', isPurchase: false },
+      { eventName: 'level_win_0-0-002', displayName: 'Level 2', eventType: 'level', isPurchase: false },
+      { eventName: 'level_win_0-0-003', displayName: 'Level 3', eventType: 'level', isPurchase: false },
+      { eventName: 'level_win_0-0-004', displayName: 'Level 4', eventType: 'level', isPurchase: false },
+      { eventName: 'level_win_0-0-005', displayName: 'Level 5', eventType: 'level', isPurchase: false },
+      { eventName: 'level_win_0-0-006', displayName: 'Level 6', eventType: 'level', isPurchase: false },
+      { eventName: 'level_win_0-0-007', displayName: 'Level 7', eventType: 'level', isPurchase: false },
+      { eventName: 'level_win_0-0-008', displayName: 'Level 8', eventType: 'level', isPurchase: false },
+      { eventName: 'level_win_0-0-009', displayName: 'Level 9', eventType: 'level', isPurchase: false },
+      { eventName: 'level_win_0-0-010', displayName: 'Level 10', eventType: 'level', isPurchase: false }
+    ],
+  },
+  {
+    name: 'grand_hotel_mania', displayName: 'Grand Hotel Mania', package: 'com.deuscraft.TurboTeam',
+    devKey: 'SkFuXyWX5DroPdHMwH8pNZ', emoji: '🏨',
+    events: [
+      { eventName: 'mrgs_cumulative_session_time_1min', displayName: 'Session 1 min', eventType: 'session', isPurchase: false },
+      { eventName: 'mrgs_cumulative_session_time_2min', displayName: 'Session 2 min', eventType: 'session', isPurchase: false },
+      { eventName: 'mrgs_cumulative_session_time_3min', displayName: 'Session 3 min', eventType: 'session', isPurchase: false },
+      { eventName: 'mrgs_cumulative_session_time_4min', displayName: 'Session 4 min', eventType: 'session', isPurchase: false },
+      { eventName: 'mrgs_cumulative_session_time_5min', displayName: 'Session 5 min', eventType: 'session', isPurchase: false },
+      { eventName: 'mrgs_cumulative_session_time_6min', displayName: 'Session 6 min', eventType: 'session', isPurchase: false },
+      { eventName: 'mrgs_cumulative_session_time_7min', displayName: 'Session 7 min', eventType: 'session', isPurchase: false },
+      { eventName: 'mrgs_cumulative_session_time_8min', displayName: 'Session 8 min', eventType: 'session', isPurchase: false },
+      { eventName: 'mrgs_cumulative_session_time_9min', displayName: 'Session 9 min', eventType: 'session', isPurchase: false },
+      { eventName: 'mrgs_cumulative_session_time_10min', displayName: 'Session 10 min', eventType: 'session', isPurchase: false }
+    ],
+  },
+  {
+    name: 'double_rich_casino', displayName: 'Double Rich Casino', package: 'com.newclassic.doublerich',
+    devKey: 'oViTEHfSrjZUrza8hiRNg4', emoji: '🎰',
+    events: [
+      { eventName: 'af_level_1', displayName: 'Level 1', eventType: 'level', isPurchase: false },
+      { eventName: 'af_level_2', displayName: 'Level 2', eventType: 'level', isPurchase: false },
+      { eventName: 'af_level_3', displayName: 'Level 3', eventType: 'level', isPurchase: false },
+      { eventName: 'af_level_4', displayName: 'Level 4', eventType: 'level', isPurchase: false },
+      { eventName: 'af_level_5', displayName: 'Level 5', eventType: 'level', isPurchase: false },
+      { eventName: 'af_level_6', displayName: 'Level 6', eventType: 'level', isPurchase: false },
+      { eventName: 'af_level_7', displayName: 'Level 7', eventType: 'level', isPurchase: false },
+      { eventName: 'af_level_8', displayName: 'Level 8', eventType: 'level', isPurchase: false },
+      { eventName: 'af_level_9', displayName: 'Level 9', eventType: 'level', isPurchase: false },
+      { eventName: 'af_level_10', displayName: 'Level 10', eventType: 'level', isPurchase: false }
+    ],
+  },
+  {
+    name: 'gossip_harbor', displayName: 'Gossip Harbor', package: 'com.mergegames.gossipharbor',
+    devKey: 'rRwwAbVR4uYxXGzKwkNzWZ', emoji: '⚓',
+    events: [
+      { eventName: 'level_up_1', displayName: 'Level Up 1', eventType: 'level', isPurchase: false },
+      { eventName: 'level_up_2', displayName: 'Level Up 2', eventType: 'level', isPurchase: false },
+      { eventName: 'level_up_3', displayName: 'Level Up 3', eventType: 'level', isPurchase: false },
+      { eventName: 'level_up_4', displayName: 'Level Up 4', eventType: 'level', isPurchase: false },
+      { eventName: 'level_up_5', displayName: 'Level Up 5', eventType: 'level', isPurchase: false },
+      { eventName: 'level_up_6', displayName: 'Level Up 6', eventType: 'level', isPurchase: false },
+      { eventName: 'level_up_7', displayName: 'Level Up 7', eventType: 'level', isPurchase: false },
+      { eventName: 'level_up_8', displayName: 'Level Up 8', eventType: 'level', isPurchase: false },
+      { eventName: 'level_up_9', displayName: 'Level Up 9', eventType: 'level', isPurchase: false },
+      { eventName: 'level_up_10', displayName: 'Level Up 10', eventType: 'level', isPurchase: false }
+    ],
+  },
+  {
+    name: 'merge_county', displayName: 'Merge County', package: 'com.mf.town',
+    devKey: 'M9jeZtZDFEpp3XpimBKXC6', emoji: '🏘️',
+    events: [
+      { eventName: 'topscore_1000_jili', displayName: 'Top Score 1000', eventType: 'score', isPurchase: false },
+      { eventName: 'topscore_2000_jili', displayName: 'Top Score 2000', eventType: 'score', isPurchase: false },
+      { eventName: 'topscore_3000_jili', displayName: 'Top Score 3000', eventType: 'score', isPurchase: false },
+      { eventName: 'topscore_4000_jili', displayName: 'Top Score 4000', eventType: 'score', isPurchase: false },
+      { eventName: 'topscore_5000_jili', displayName: 'Top Score 5000', eventType: 'score', isPurchase: false },
+      { eventName: 'topscore_6000_jili', displayName: 'Top Score 6000', eventType: 'score', isPurchase: false },
+      { eventName: 'topscore_7000_jili', displayName: 'Top Score 7000', eventType: 'score', isPurchase: false },
+      { eventName: 'topscore_8000_jili', displayName: 'Top Score 8000', eventType: 'score', isPurchase: false },
+      { eventName: 'topscore_9000_jili', displayName: 'Top Score 9000', eventType: 'score', isPurchase: false },
+      { eventName: 'topscore_10000_jili', displayName: 'Top Score 10000', eventType: 'score', isPurchase: false }
+    ],
   }
 ];
 
