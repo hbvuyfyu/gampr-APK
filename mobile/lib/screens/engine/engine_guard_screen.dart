@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:go_router/go_router.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/subscription_guard.dart';
 import 'jumper_engine_screen.dart';
 import 'schedule_engine_screen.dart';
 import 'proxy_manager_screen.dart';
@@ -188,49 +189,50 @@ class _EngineGuardScreenState extends State<EngineGuardScreen>
   }
 
   Widget _buildEngineScreen() {
-    return Scaffold(
-      backgroundColor: AppTheme.background,
-      appBar: AppBar(
+    return SubscriptionGuard(
+      child: Scaffold(
         backgroundColor: AppTheme.background,
-        elevation: 0,
-        title: Row(mainAxisSize: MainAxisSize.min, children: [
-          _build3DLogo(28),
-          const SizedBox(width: 10),
-          const Text('Engine', style: TextStyle(
-            fontFamily: 'Cairo', fontWeight: FontWeight.bold,
-            fontSize: 18, color: AppTheme.textPrimary,
-          )),
-        ]),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: AppTheme.textPrimary),
-          onPressed: () => context.go('/'),
+        appBar: AppBar(
+          backgroundColor: AppTheme.background,
+          elevation: 0,
+          title: Row(mainAxisSize: MainAxisSize.min, children: [
+            _build3DLogo(28),
+            const SizedBox(width: 10),
+            const Text('Engine', style: TextStyle(
+              fontFamily: 'Cairo', fontWeight: FontWeight.bold,
+              fontSize: 18, color: AppTheme.textPrimary,
+            )),
+          ]),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios, color: AppTheme.textPrimary),
+            onPressed: () => context.go('/'),
+          ),
         ),
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            const SizedBox(height: 8),
-            // 3D Rotating VIP Logo with glow
-            Center(
-              child: AnimatedBuilder(
-                animation: _glow,
-                builder: (_, __) => Container(
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    boxShadow: [BoxShadow(color: Colors.white.withOpacity(_glow.value * 0.2), blurRadius: 40, spreadRadius: 8)],
+        body: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              const SizedBox(height: 8),
+              // 3D Rotating VIP Logo with glow
+              Center(
+                child: AnimatedBuilder(
+                  animation: _glow,
+                  builder: (_, __) => Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      boxShadow: [BoxShadow(color: Colors.white.withOpacity(_glow.value * 0.2), blurRadius: 40, spreadRadius: 8)],
+                    ),
+                    child: _build3DLogo(110),
                   ),
-                  child: _build3DLogo(110),
                 ),
               ),
-            ),
-            const SizedBox(height: 20),
-            const Center(child: Text('VIP Engine', style: TextStyle(
-              fontSize: 28, fontWeight: FontWeight.bold,
-              color: AppTheme.textPrimary, fontFamily: 'Cairo', letterSpacing: 2,
-            ))),
-            const SizedBox(height: 8),
-            Center(
+              const SizedBox(height: 20),
+              const Center(child: Text('VIP Engine', style: TextStyle(
+                fontSize: 28, fontWeight: FontWeight.bold,
+                color: AppTheme.textPrimary, fontFamily: 'Cairo', letterSpacing: 2,
+              ))),
+              const SizedBox(height: 8),
+              Center(
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                 decoration: BoxDecoration(
@@ -313,6 +315,7 @@ class _EngineGuardScreenState extends State<EngineGuardScreen>
           ]),
         ),
       ),
+    ),
     );
   }
 

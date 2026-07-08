@@ -20,12 +20,98 @@ function parseLevelTime(s: string): number {
   return parseFloat(v);
 }
 
+// Helper: Check active subscription and get daily usage status
+async function checkActiveSubscription(userId: string): Promise<{
+  hasSubscription: boolean;
+  subscriptionId?: string;
+  planId?: string;
+  dailyLimit: number;
+  usedToday: number;
+  remaining: number;
+}> {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  const sub = await prisma.subscription.findFirst({
+    where: { userId, status: 'ACTIVE', endDate: { gt: now } },
+    include: { plan: true },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  if (!sub) {
+    return { hasSubscription: false, dailyLimit: 0, usedToday: 0, remaining: 0 };
+  }
+
+  const dailyLimit = sub.plan.dailyOperations;
+  const usage = await prisma.dailyUsage.findUnique({
+    where: { userId_subscriptionId_date: { userId, subscriptionId: sub.id, date: today } },
+  });
+
+  const usedToday = usage?.operationsUsed ?? 0;
+  const remaining = Math.max(0, dailyLimit - usedToday);
+
+  return {
+    hasSubscription: true,
+    subscriptionId: sub.id,
+    planId: sub.planId,
+    dailyLimit,
+    usedToday,
+    remaining,
+  };
+}
+
+// Helper: Deduct operations from user's daily usage
+async function deductOperations(userId: string, subscriptionId: string, count: number): Promise<boolean> {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  try {
+    const usage = await prisma.dailyUsage.upsert({
+      where: { userId_subscriptionId_date: { userId, subscriptionId, date: today } },
+      create: { userId, subscriptionId, date: today, operationsUsed: count },
+      update: { operationsUsed: { increment: count } },
+    });
+    return true;
+  } catch (err) {
+    console.error('[deductOperations] error:', err);
+    return false;
+  }
+}
+
+// Helper: Refund operations back to user's daily usage
+async function refundOperations(userId: string, subscriptionId: string, count: number): Promise<boolean> {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  try {
+    await prisma.dailyUsage.update({
+      where: { userId_subscriptionId_date: { userId, subscriptionId, date: today } },
+      data: { operationsUsed: { decrement: count } },
+    });
+    return true;
+  } catch (err) {
+    console.error('[refundOperations] error:', err);
+    return false;
+  }
+}
+
 // POST /api/schedule/create
 export async function createSchedGroup(req: AuthRequest, res: Response): Promise<void> {
   try {
     const userId = req.user?.id;
     if (!userId) {
       res.status(401).json({ success: false, message: 'Unauthorized' });
+      return;
+    }
+
+    // Check active subscription FIRST
+    const subCheck = await checkActiveSubscription(userId);
+    if (!subCheck.hasSubscription) {
+      res.status(403).json({
+        success: false,
+        message: 'لا يوجد اشتراك نشط. يرجى الاشتراك في إحدى الباقات.',
+        code: 'NO_SUBSCRIPTION',
+      });
       return;
     }
 
@@ -50,6 +136,26 @@ export async function createSchedGroup(req: AuthRequest, res: Response): Promise
     }
     if (!Array.isArray(eventsOrder) || eventsOrder.length === 0) {
       res.status(400).json({ success: false, message: 'يجب إدخال حدث واحد على الأقل' });
+      return;
+    }
+
+    // Check if user has enough operations remaining
+    const eventsCount = eventsOrder.length;
+    if (subCheck.remaining < eventsCount) {
+      res.status(429).json({
+        success: false,
+        message: `عمليات غير كافية. متوفر: ${subCheck.remaining}، مطلوب: ${eventsCount}`,
+        code: 'INSUFFICIENT_OPERATIONS',
+        remaining: subCheck.remaining,
+        required: eventsCount,
+      });
+      return;
+    }
+
+    // Deduct operations IMMEDIATELY
+    const deducted = await deductOperations(userId, subCheck.subscriptionId!, eventsCount);
+    if (!deducted) {
+      res.status(500).json({ success: false, message: 'فشل خصم العمليات' });
       return;
     }
 
@@ -78,6 +184,8 @@ export async function createSchedGroup(req: AuthRequest, res: Response): Promise
       success: true,
       groupId: group.id,
       message: 'تم تفعيل الجدولة',
+      operationsDeducted: eventsCount,
+      remaining: subCheck.remaining - eventsCount,
     });
   } catch (err: any) {
     console.error('[sched:create] error:', err);

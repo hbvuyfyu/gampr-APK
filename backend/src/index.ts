@@ -17,7 +17,7 @@ import scheduleRoutes from './routes/schedule.routes';
 import proxyRoutes from './routes/proxy.routes';
 import { oxapayWebhook } from './controllers/payment.controller';
 import prisma from './utils/prisma';
-import { resumeActiveGroups } from './utils/scheduler';
+import { resumeActiveGroups, cancelExpiredSubscriptions } from './utils/scheduler';
 
 dotenv.config();
 
@@ -122,6 +122,9 @@ async function bootstrap(): Promise<void> {
   app.listen(PORT, () => {
     console.log(`🚀 VIP Backend running on port ${PORT}`);
     resumeActiveGroups();
+    // Run subscription expiration check every 30 seconds
+    cancelExpiredSubscriptions();
+    setInterval(cancelExpiredSubscriptions, 30000);
   });
 }
 

@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/subscription_guard.dart';
 import 'remote_common.dart';
 
 enum _RPhase {
@@ -47,6 +48,12 @@ class _RemoteJumperScreenState extends State<RemoteJumperScreen> with SingleTick
 
   Map<String, dynamic>? _dailyUsage;
 
+  // Proxy state
+  List<Map<String, dynamic>> _proxies = [];
+  String? _selectedProxyId;
+  bool _loadingProxies = false;
+  Map<String, dynamic>? _proxySettings;
+
   late final AnimationController _logoCtrl;
 
   @override
@@ -79,6 +86,29 @@ class _RemoteJumperScreenState extends State<RemoteJumperScreen> with SingleTick
         setState(() => _dailyUsage = res['data'] as Map<String, dynamic>?);
       }
     } catch (_) {}
+    _loadProxies();
+  }
+
+  Future<void> _loadProxies() async {
+    setState(() => _loadingProxies = true);
+    try {
+      final res = await ApiService.get('/proxies');
+      if (res['success'] == true && mounted) {
+        setState(() {
+          _proxies = (res['data'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+          _selectedProxyId = res['selectedProxyId'] as String?;
+          _loadingProxies = false;
+        });
+      } else {
+        setState(() => _loadingProxies = false);
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loadingProxies = false);
+    }
+  }
+
+  void _selectProxy(String? proxyId) {
+    setState(() => _selectedProxyId = proxyId);
   }
 
   void _reset() {
@@ -491,6 +521,9 @@ class _RemoteJumperScreenState extends State<RemoteJumperScreen> with SingleTick
       _buildIdsSection(),
       const SizedBox(height: 12),
 
+      _buildProxySection(),
+      const SizedBox(height: 12),
+
       Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
@@ -579,6 +612,112 @@ class _RemoteJumperScreenState extends State<RemoteJumperScreen> with SingleTick
         focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppTheme.primary)),
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         isDense: true,
+      ),
+    );
+  }
+
+  Widget _buildProxySection() {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppTheme.cardBg,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppTheme.border),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          const Icon(Icons.public, color: AppTheme.primary, size: 17),
+          const SizedBox(width: 8),
+          const Expanded(child: Text('البروكسي',
+              style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, color: AppTheme.textPrimary, fontSize: 14))),
+          if (_loadingProxies)
+            const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.primary)),
+        ]),
+        const SizedBox(height: 10),
+        if (!_loadingProxies) ...[
+          // Direct connection option
+          GestureDetector(
+            onTap: () => _selectProxy(null),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 140),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: _selectedProxyId == null ? AppTheme.primary.withOpacity(0.12) : AppTheme.surface,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: _selectedProxyId == null ? AppTheme.primary : AppTheme.border,
+                  width: _selectedProxyId == null ? 1.5 : 1,
+                ),
+              ),
+              child: Row(children: [
+                Icon(_selectedProxyId == null ? Icons.radio_button_checked : Icons.radio_button_off,
+                    color: _selectedProxyId == null ? AppTheme.primary : AppTheme.textHint, size: 18),
+                const SizedBox(width: 10),
+                const Expanded(child: Text('اتصال مباشر (بدون بروكسي)',
+                    style: TextStyle(fontFamily: 'Cairo', fontSize: 13, color: AppTheme.textPrimary))),
+              ]),
+            ),
+          ),
+          if (_proxies.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            ..._proxies.map((p) => _buildProxyTile(p)),
+          ],
+          const SizedBox(height: 10),
+          TextButton.icon(
+            onPressed: () => Navigator.pushNamed(context, '/proxy-manager').then((_) => _loadProxies()),
+            icon: const Icon(Icons.add, color: AppTheme.primary, size: 16),
+            label: const Text('إدارة البروكسيات', style: TextStyle(color: AppTheme.primary, fontFamily: 'Cairo', fontSize: 12)),
+          ),
+        ],
+      ]),
+    );
+  }
+
+  Widget _buildProxyTile(Map<String, dynamic> p) {
+    final id = p['id'] as String;
+    final name = p['name']?.toString() ?? '';
+    final type = p['type']?.toString() ?? 'socks5';
+    final host = p['host']?.toString() ?? '';
+    final port = p['port']?.toString() ?? '';
+    final isWorking = p['isWorking'] == true;
+    final isSelected = _selectedProxyId == id;
+
+    return GestureDetector(
+      onTap: () => _selectProxy(id),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 140),
+        margin: const EdgeInsets.only(bottom: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected ? AppTheme.primary.withOpacity(0.12) : AppTheme.surface,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isSelected ? AppTheme.primary : AppTheme.border,
+            width: isSelected ? 1.5 : 1,
+          ),
+        ),
+        child: Row(children: [
+          Icon(isSelected ? Icons.radio_button_checked : Icons.radio_button_off,
+              color: isSelected ? AppTheme.primary : AppTheme.textHint, size: 18),
+          const SizedBox(width: 10),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              Text(name, style: TextStyle(fontFamily: 'Cairo', fontSize: 12, color: isSelected ? AppTheme.primary : AppTheme.textPrimary, fontWeight: FontWeight.bold)),
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                decoration: BoxDecoration(color: (isWorking ? AppTheme.success : AppTheme.error).withOpacity(0.15), borderRadius: BorderRadius.circular(4)),
+                child: Text(isWorking ? 'يعمل' : 'لا يعمل', style: TextStyle(color: isWorking ? AppTheme.success : AppTheme.error, fontSize: 9, fontFamily: 'Cairo')),
+              ),
+            ]),
+            Text('$type · $host:$port', style: const TextStyle(color: AppTheme.textHint, fontSize: 10, fontFamily: 'monospace')),
+          ])),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(color: AppTheme.surfaceVariant, borderRadius: BorderRadius.circular(4)),
+            child: Text(type.toUpperCase(), style: const TextStyle(color: AppTheme.textSecondary, fontSize: 9)),
+          ),
+        ]),
       ),
     );
   }

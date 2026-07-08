@@ -10,6 +10,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/subscription_guard.dart';
 import 'remote_jumper_screen.dart';
 import 'remote_schedule_screen.dart';
 
@@ -83,102 +84,104 @@ class _RemoteEngineHubScreenState extends State<RemoteEngineHubScreen> with Sing
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppTheme.background,
-      appBar: AppBar(
+    return SubscriptionGuard(
+      child: Scaffold(
         backgroundColor: AppTheme.background,
-        elevation: 0,
-        title: Row(mainAxisSize: MainAxisSize.min, children: [
-          _build3DLogo(28),
-          const SizedBox(width: 10),
-          const Text('جمبرة عن بعد', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 18, color: AppTheme.textPrimary)),
-        ]),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: AppTheme.textPrimary),
-          onPressed: () => context.go('/'),
+        appBar: AppBar(
+          backgroundColor: AppTheme.background,
+          elevation: 0,
+          title: Row(mainAxisSize: MainAxisSize.min, children: [
+            _build3DLogo(28),
+            const SizedBox(width: 10),
+            const Text('جمبرة عن بعد', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 18, color: AppTheme.textPrimary)),
+          ]),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios, color: AppTheme.textPrimary),
+            onPressed: () => context.go('/'),
+          ),
         ),
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            const SizedBox(height: 8),
-            Center(
-              child: AnimatedBuilder(
-                animation: _glow,
-                builder: (_, __) => Container(
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    boxShadow: [BoxShadow(color: Colors.white.withOpacity(_glow.value * 0.2), blurRadius: 40, spreadRadius: 8)],
+        body: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              const SizedBox(height: 8),
+              Center(
+                child: AnimatedBuilder(
+                  animation: _glow,
+                  builder: (_, __) => Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      boxShadow: [BoxShadow(color: Colors.white.withOpacity(_glow.value * 0.2), blurRadius: 40, spreadRadius: 8)],
+                    ),
+                    child: _build3DLogo(110),
                   ),
-                  child: _build3DLogo(110),
                 ),
               ),
-            ),
-            const SizedBox(height: 20),
-            const Center(child: Text('جمبرة عن بعد', style: TextStyle(
-              fontSize: 26, fontWeight: FontWeight.bold, color: AppTheme.textPrimary, fontFamily: 'Cairo', letterSpacing: 1,
-            ))),
-            const SizedBox(height: 8),
-            Center(
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                decoration: BoxDecoration(
-                  color: AppTheme.warning.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: AppTheme.warning.withOpacity(0.3)),
+              const SizedBox(height: 20),
+              const Center(child: Text('جمبرة عن بعد', style: TextStyle(
+                fontSize: 26, fontWeight: FontWeight.bold, color: AppTheme.textPrimary, fontFamily: 'Cairo', letterSpacing: 1,
+              ))),
+              const SizedBox(height: 8),
+              Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AppTheme.warning.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: AppTheme.warning.withOpacity(0.3)),
+                  ),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    const Icon(Icons.touch_app_outlined, color: AppTheme.warning, size: 13),
+                    const SizedBox(width: 6),
+                    const Text('اختيار يدوي — بدون الحاجة لتطبيق مفتوح أو صلاحيات Root', style: TextStyle(color: AppTheme.warning, fontFamily: 'Cairo', fontSize: 11)),
+                  ]),
                 ),
-                child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  const Icon(Icons.touch_app_outlined, color: AppTheme.warning, size: 13),
-                  const SizedBox(width: 6),
-                  const Text('اختيار يدوي — بدون الحاجة لتطبيق مفتوح أو صلاحيات Root', style: TextStyle(color: AppTheme.warning, fontFamily: 'Cairo', fontSize: 11)),
+              ),
+
+              const SizedBox(height: 28),
+
+              _buildFeatureCard(
+                context: context,
+                icon: '📡',
+                title: 'إرسال حدث عن بعد',
+                subtitle: 'Remote Event Sender',
+                description: 'اختر المنصة واللعبة يدوياً وأدخل المعرفات، ثم أرسل أي حدث أو لفل',
+                isPrimary: true,
+                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RemoteJumperScreen())),
+              ),
+              const SizedBox(height: 12),
+
+              _buildFeatureCard(
+                context: context,
+                icon: '🗓️',
+                title: 'جدولة عمليات',
+                subtitle: 'Remote Schedule Operations',
+                description: 'جدولة إرسال اللفلات/الأحداث تلقائياً باختيار يدوي للمنصة واللعبة والمعرفات',
+                isPrimary: false,
+                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RemoteScheduleScreen())),
+              ),
+
+              const SizedBox(height: 16),
+
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: AppTheme.cardBg,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppTheme.border),
+                ),
+                child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  const Icon(Icons.info_outline, color: AppTheme.textSecondary, size: 18),
+                  const SizedBox(width: 10),
+                  Expanded(child: Text(
+                    'هذه الميزة مخصصة للعمل عن بعد: تختار المنصة واللعبة يدوياً وتدخل المعرفات (GAID / AF UID) بنفسك، وتتابع باقي الخطوات (اختيار اللفل أو التخصيص والإرسال أو الجدولة) بنفس طريقة محرك Engine الأساسي تماماً.',
+                    style: TextStyle(color: AppTheme.textSecondary.withOpacity(0.8), fontFamily: 'Cairo', fontSize: 12, height: 1.5),
+                  )),
                 ]),
               ),
-            ),
-
-            const SizedBox(height: 28),
-
-            _buildFeatureCard(
-              context: context,
-              icon: '📡',
-              title: 'إرسال حدث عن بعد',
-              subtitle: 'Remote Event Sender',
-              description: 'اختر المنصة واللعبة يدوياً وأدخل المعرفات، ثم أرسل أي حدث أو لفل',
-              isPrimary: true,
-              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RemoteJumperScreen())),
-            ),
-            const SizedBox(height: 12),
-
-            _buildFeatureCard(
-              context: context,
-              icon: '🗓️',
-              title: 'جدولة عمليات',
-              subtitle: 'Remote Schedule Operations',
-              description: 'جدولة إرسال اللفلات/الأحداث تلقائياً باختيار يدوي للمنصة واللعبة والمعرفات',
-              isPrimary: false,
-              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RemoteScheduleScreen())),
-            ),
-
-            const SizedBox(height: 16),
-
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: AppTheme.cardBg,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: AppTheme.border),
-              ),
-              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Icon(Icons.info_outline, color: AppTheme.textSecondary, size: 18),
-                const SizedBox(width: 10),
-                Expanded(child: Text(
-                  'هذه الميزة مخصصة للعمل عن بعد: تختار المنصة واللعبة يدوياً وتدخل المعرفات (GAID / AF UID) بنفسك، وتتابع باقي الخطوات (اختيار اللفل أو التخصيص والإرسال أو الجدولة) بنفس طريقة محرك Engine الأساسي تماماً.',
-                  style: TextStyle(color: AppTheme.textSecondary.withOpacity(0.8), fontFamily: 'Cairo', fontSize: 12, height: 1.5),
-                )),
-              ]),
-            ),
-            const SizedBox(height: 24),
-          ]),
+              const SizedBox(height: 24),
+            ]),
+          ),
         ),
       ),
     );

@@ -54,6 +54,31 @@ async function isGroupActive(groupId: string): Promise<boolean> {
   return g?.status === 'active';
 }
 
+// Helper: Check if user has active subscription
+async function hasActiveSubscription(userId: string): Promise<{ active: boolean; subscriptionId?: string }> {
+  const now = new Date();
+  const sub = await prisma.subscription.findFirst({
+    where: { userId, status: 'ACTIVE', endDate: { gt: now } },
+    select: { id: true },
+  });
+  return sub ? { active: true, subscriptionId: sub.id } : { active: false };
+}
+
+// Helper: Refund operation back to user
+async function refundOperation(userId: string, subscriptionId: string): Promise<void> {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  try {
+    await prisma.dailyUsage.update({
+      where: { userId_subscriptionId_date: { userId, subscriptionId, date: today } },
+      data: { operationsUsed: { decrement: 1 } },
+    });
+    console.log(`[sched] Refunded 1 operation to user ${userId}`);
+  } catch (err) {
+    console.error(`[sched] Failed to refund operation:`, err);
+  }
+}
+
 async function sendOneEvent(
   platform: string,
   gameKey: string | null,
@@ -138,6 +163,18 @@ export async function runSchedGroupLoop(groupId: string): Promise<void> {
     return;
   }
 
+  // Check subscription before starting
+  const subCheck = await hasActiveSubscription(g.userId);
+  if (!subCheck.active) {
+    console.log(`[sched:${groupId}] No active subscription - stopping`);
+    await prisma.schedGroup.update({
+      where: { id: groupId },
+      data: { status: 'stopped' },
+    }).catch(() => {});
+    cancelTask(groupId);
+    return;
+  }
+
   let events: SchedEntry[];
   try {
     events = JSON.parse(g.eventsOrder) as SchedEntry[];
@@ -170,14 +207,19 @@ export async function runSchedGroupLoop(groupId: string): Promise<void> {
 
   // Resolve the user's selected proxy once at the start of the loop
   let agent: any = null;
-  let proxyChecked = false;
   try {
     agent = await getAxiosAgentForUser(g.userId);
     if (agent) {
       const proxyCheck = await verifyProxyWorking(g.userId);
-      proxyChecked = true;
       if (!proxyCheck.working) {
         console.log(`[sched:${groupId}] proxy not working — aborting: ${proxyCheck.error}`);
+        // Refund remaining operations since proxy failed and we can't continue
+        const remaining = events.length;
+        if (subCheck.subscriptionId) {
+          for (let r = 0; r < remaining; r++) {
+            await refundOperation(g.userId, subCheck.subscriptionId);
+          }
+        }
         await prisma.schedGroup.update({
           where: { id: groupId },
           data: { status: 'stopped' },
@@ -191,7 +233,27 @@ export async function runSchedGroupLoop(groupId: string): Promise<void> {
   }
 
   for (let i = 0; i < events.length; i++) {
+    // Check subscription and group status before each event
     if (!(await isGroupActive(groupId))) {
+      cancelTask(groupId);
+      return;
+    }
+
+    // Re-check subscription before each event
+    const currentSub = await hasActiveSubscription(g.userId);
+    if (!currentSub.active) {
+      console.log(`[sched:${groupId}] Subscription expired during execution - stopping`);
+      // Refund remaining operations
+      const remaining = events.length - i;
+      if (subCheck.subscriptionId) {
+        for (let r = 0; r < remaining; r++) {
+          await refundOperation(g.userId, subCheck.subscriptionId);
+        }
+      }
+      await prisma.schedGroup.update({
+        where: { id: groupId },
+        data: { status: 'stopped' },
+      }).catch(() => {});
       cancelTask(groupId);
       return;
     }
@@ -232,12 +294,19 @@ export async function runSchedGroupLoop(groupId: string): Promise<void> {
       agent ?? undefined
     );
 
+    // If send failed, refund the operation
+    const sendFailed = status < 200 || status >= 300;
+    if (sendFailed && subCheck.subscriptionId) {
+      await refundOperation(g.userId, subCheck.subscriptionId);
+      console.log(`[sched:${groupId}] Event failed (HTTP ${status}) - refunded 1 operation`);
+    }
+
     await prisma.schedGroup.update({
       where: { id: groupId },
       data: { nextRun: new Date() },
     }).catch(() => {});
 
-    console.log(`[sched:${groupId}] ${g.gameName} | ${label} | HTTP ${status}`);
+    console.log(`[sched:${groupId}] ${g.gameName} | ${label} | HTTP ${status}${sendFailed ? ' [REFUNDED]' : ''}`);
   }
 
   await prisma.schedGroup.update({
@@ -259,15 +328,72 @@ export async function resumeActiveGroups(): Promise<void> {
   try {
     const groups = await prisma.schedGroup.findMany({
       where: { status: 'active' },
-      select: { id: true },
+      select: { id: true, userId: true },
     });
     for (const g of groups) {
-      startSchedTask(g.id);
+      // Check if user still has active subscription before resuming
+      const subCheck = await hasActiveSubscription(g.userId);
+      if (subCheck.active) {
+        startSchedTask(g.id);
+      } else {
+        // Stop the group if subscription expired
+        await prisma.schedGroup.update({
+          where: { id: g.id },
+          data: { status: 'stopped' },
+        }).catch(() => {});
+        console.log(`[sched] Stopped group ${g.id} - subscription expired`);
+      }
     }
     if (groups.length > 0) {
       console.log(`✅ Resumed ${groups.length} active scheduling group(s)`);
     }
   } catch (err) {
     console.error('[sched] resume error:', err);
+  }
+}
+
+// Cancel expired subscriptions and stop their scheduling groups
+export async function cancelExpiredSubscriptions(): Promise<void> {
+  try {
+    const now = new Date();
+
+    // Find all expired but still ACTIVE subscriptions
+    const expiredSubs = await prisma.subscription.findMany({
+      where: {
+        status: 'ACTIVE',
+        endDate: { lte: now },
+      },
+      select: { id: true, userId: true },
+    });
+
+    if (expiredSubs.length === 0) return;
+
+    // Cancel each expired subscription
+    for (const sub of expiredSubs) {
+      await prisma.subscription.update({
+        where: { id: sub.id },
+        data: { status: 'EXPIRED' },
+      });
+
+      // Stop all active scheduling groups for this user
+      const activeGroups = await prisma.schedGroup.findMany({
+        where: { userId: sub.userId, status: 'active' },
+        select: { id: true },
+      });
+
+      for (const g of activeGroups) {
+        stopSchedTask(g.id);
+        await prisma.schedGroup.update({
+          where: { id: g.id },
+          data: { status: 'stopped' },
+        }).catch(() => {});
+      }
+
+      console.log(`[subscription] Expired subscription ${sub.id} for user ${sub.userId} - stopped ${activeGroups.length} scheduling groups`);
+    }
+
+    console.log(`✅ Processed ${expiredSubs.length} expired subscription(s)`);
+  } catch (err) {
+    console.error('[subscription] cancelExpired error:', err);
   }
 }
