@@ -90,30 +90,14 @@ class _PaymentScreenState extends State<PaymentScreen> {
     }
   }
 
-  // Standard methods (Sham Cash, Syriatel, USDT BEP20 manual)
+  // Standard methods (Sham Cash, Syriatel Cash): no payment request is
+  // created yet — the customer must first see the payment address, transfer
+  // the money, upload proof, and press "confirm/send" on the next screen.
+  // Only then is the payment request actually created and made visible to
+  // the admin (see PaymentProofScreen._submit).
   Future<void> _proceedStandard() async {
-    final res = await ApiService.post('/payments', {
-      'planId': widget.planId,
-      'method': _selectedMethod,
-    });
     if (!mounted) return;
-
-    if (res['success'] == true) {
-      final paymentId = (res['data'] as Map<String, dynamic>)['id'] as String;
-      if (_selectedMethod == 'USDT_BEP20') {
-        context.push('/payment/$paymentId/usdt');
-      } else {
-        context.push('/payment/$paymentId/proof');
-      }
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(
-          res['message']?.toString() ?? 'خطأ في إنشاء طلب الدفع',
-          style: const TextStyle(fontFamily: 'Cairo'),
-        ),
-        backgroundColor: AppTheme.error,
-      ));
-    }
+    context.push('/payment/${widget.planId}/proof?method=$_selectedMethod');
   }
 
   @override
@@ -208,13 +192,6 @@ class _PaymentScreenState extends State<PaymentScreen> {
         'label': 'Syriatel Cash',
         'icon': Icons.phone_android_outlined,
         'color': AppTheme.success,
-        'badge': null,
-      },
-      {
-        'value': 'USDT_BEP20',
-        'label': 'USDT BEP20 (يدوي)',
-        'icon': Icons.currency_bitcoin,
-        'color': AppTheme.accent,
         'badge': null,
       },
       {

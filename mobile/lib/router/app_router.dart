@@ -49,9 +49,10 @@ class AppRouter {
               ),
             ),
             GoRoute(
-              path: '/payment/:paymentId/proof',
+              path: '/payment/:planId/proof',
               builder: (_, state) => PaymentProofScreen(
-                paymentId: state.pathParameters['paymentId']!,
+                planId: state.pathParameters['planId']!,
+                method: state.uri.queryParameters['method'] ?? '',
               ),
             ),
             GoRoute(

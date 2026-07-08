@@ -34,13 +34,55 @@ export const getPaymentSettings = async (_req: any, res: Response): Promise<void
   }
 };
 
+// Methods that require the customer to manually transfer funds and upload a
+// screenshot as proof before the request may be reviewed by an admin.
+// (OXAPAY_USDT is fully automated via webhook and never needs manual proof.)
+const MANUAL_PROOF_METHODS = ['SHAM_CASH', 'SYRIATEL_CASH', 'USDT_BEP20'];
+
+// Uploads a payment-proof image to Cloudinary, falling back to storing the
+// base64 payload directly in the DB if Cloudinary is not configured/reachable.
+async function processProofImage(imageBase64: string): Promise<{
+  proofImageUrl: string | null;
+  proofImageBase64: string | null;
+}> {
+  const normalized = imageBase64.startsWith('data:')
+    ? imageBase64
+    : `data:image/jpeg;base64,${imageBase64}`;
+
+  try {
+    await configureCloudinary();
+    const uploadResult = await cloudinary.uploader.upload(normalized, {
+      folder: 'payment_proofs',
+      resource_type: 'image',
+    });
+    return { proofImageUrl: uploadResult.secure_url, proofImageBase64: null };
+  } catch (cloudErr) {
+    console.warn('[processProofImage] Cloudinary failed, storing base64 in DB:', errMsg(cloudErr));
+    return { proofImageUrl: null, proofImageBase64: normalized };
+  }
+}
+
 export const createPayment = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { planId, method } = req.body;
+    const { planId, method, imageBase64 } = req.body;
     if (!planId || !method) {
       res.status(400).json({ success: false, message: 'planId و method مطلوبان' });
       return;
     }
+
+    // Manual-transfer methods must arrive with proof already attached so a
+    // request is never visible to the admin before the customer has actually
+    // paid and confirmed. The customer must pay, upload a screenshot, and
+    // press "confirm/send" — only then is this endpoint called at all.
+    const requiresProof = MANUAL_PROOF_METHODS.includes(method);
+    if (requiresProof && !imageBase64) {
+      res.status(400).json({
+        success: false,
+        message: 'يجب رفع إثبات الدفع والضغط على تأكيد الإرسال قبل إنشاء طلب الدفع',
+      });
+      return;
+    }
+
     const plan = await withDb(() => prisma.plan.findUnique({ where: { id: planId } }));
     if (!plan || !plan.isActive) {
       res.status(404).json({ success: false, message: 'الباقة غير موجودة' });
@@ -71,9 +113,28 @@ export const createPayment = async (req: AuthRequest, res: Response): Promise<vo
       return;
     }
 
+    // Process proof BEFORE creating the DB record so a payment row only ever
+    // exists once proof has been successfully attached (no visible-to-admin
+    // window without proof).
+    let proofImageUrl: string | null = null;
+    let proofImageBase64: string | null = null;
+    if (requiresProof) {
+      const processed = await processProofImage(imageBase64);
+      proofImageUrl = processed.proofImageUrl;
+      proofImageBase64 = processed.proofImageBase64;
+    }
+
     const payment = await withDb(() =>
       prisma.payment.create({
-        data: { userId: req.user!.id, planId, method, amount: plan.price, status: 'PENDING' },
+        data: {
+          userId: req.user!.id,
+          planId,
+          method,
+          amount: plan.price,
+          status: 'PENDING',
+          proofImageUrl,
+          proofImageBase64,
+        },
         include: { plan: true },
       })
     );
@@ -84,6 +145,9 @@ export const createPayment = async (req: AuthRequest, res: Response): Promise<vo
   }
 };
 
+// Kept for backward compatibility (e.g. re-uploading/replacing proof on an
+// already-created pending payment). The mobile app's manual-payment flow now
+// attaches proof atomically at creation time via createPayment above.
 export const uploadProof = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { paymentId } = req.params;
@@ -101,27 +165,7 @@ export const uploadProof = async (req: AuthRequest, res: Response): Promise<void
       return;
     }
 
-    const imageBase64: string = req.body.imageBase64;
-
-    let proofImageUrl: string | null = null;
-    let proofImageBase64: string | null = null;
-    let cloudinaryOk = false;
-
-    try {
-      await configureCloudinary();
-      const uploadResult = await cloudinary.uploader.upload(
-        imageBase64.startsWith('data:') ? imageBase64 : `data:image/jpeg;base64,${imageBase64}`,
-        { folder: 'payment_proofs', resource_type: 'image' }
-      );
-      proofImageUrl = uploadResult.secure_url;
-      cloudinaryOk = true;
-    } catch (cloudErr) {
-      console.warn('[uploadProof] Cloudinary failed, storing base64 in DB:', errMsg(cloudErr));
-    }
-
-    if (!cloudinaryOk) {
-      proofImageBase64 = imageBase64.startsWith('data:') ? imageBase64 : `data:image/jpeg;base64,${imageBase64}`;
-    }
+    const { proofImageUrl, proofImageBase64 } = await processProofImage(req.body.imageBase64);
 
     await withDb(() =>
       prisma.payment.update({
